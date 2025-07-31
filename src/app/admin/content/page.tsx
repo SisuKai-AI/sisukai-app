@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,62 +22,145 @@ import {
   MoreHorizontal,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  Loader2,
+  HelpCircle,
+  Target
 } from 'lucide-react'
+
+interface ContentNode {
+  id: string
+  name: string
+  description: string
+  node_type: string
+  certification_id: string
+  parent_id: string | null
+  estimated_minutes: number
+  difficulty: string
+  order_index: number
+}
+
+interface GenerationState {
+  isGenerating: boolean
+  type: 'questions' | 'concepts' | null
+  nodeId: string | null
+}
 
 export default function ContentManagementPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [searchTerm, setSearchTerm] = useState('')
+  const [contentNodes, setContentNodes] = useState<ContentNode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [generationState, setGenerationState] = useState<GenerationState>({
+    isGenerating: false,
+    type: null,
+    nodeId: null
+  })
 
   if (!user || user.role !== 'admin') {
     return <div className="min-h-screen flex items-center justify-center">Access Denied</div>
   }
 
+  useEffect(() => {
+    loadContentNodes()
+  }, [])
+
+  const loadContentNodes = async () => {
+    try {
+      const response = await fetch('/api/admin/content-nodes')
+      if (response.ok) {
+        const data = await response.json()
+        setContentNodes(data.contentNodes || [])
+      }
+    } catch (error) {
+      console.error('Error loading content nodes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateQuestions = async (nodeId: string, nodeName: string) => {
+    setGenerationState({ isGenerating: true, type: 'questions', nodeId })
+    
+    try {
+      const response = await fetch('/api/admin/questions/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          node_id: nodeId,
+          topic: nodeName,
+          difficulty: 'intermediate',
+          count: 5,
+          save_to_database: true
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Successfully generated ${data.questions.length} questions for ${nodeName}!`)
+      } else {
+        const error = await response.json()
+        alert(`Error generating questions: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error generating questions:', error)
+      alert('Failed to generate questions')
+    } finally {
+      setGenerationState({ isGenerating: false, type: null, nodeId: null })
+    }
+  }
+
+  const generateKeyConcepts = async (nodeId: string, nodeName: string) => {
+    setGenerationState({ isGenerating: true, type: 'concepts', nodeId })
+    
+    try {
+      const response = await fetch('/api/admin/key-concepts/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          node_id: nodeId,
+          topic: nodeName,
+          save_to_database: true
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Successfully generated ${data.concepts.length} key concepts for ${nodeName}!`)
+      } else {
+        const error = await response.json()
+        alert(`Error generating key concepts: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error generating key concepts:', error)
+      alert('Failed to generate key concepts')
+    } finally {
+      setGenerationState({ isGenerating: false, type: null, nodeId: null })
+    }
+  }
+
   const contentStats = [
-    { label: 'Total Content Items', value: '1,247', icon: BookOpen, color: 'blue' },
-    { label: 'Published', value: '892', icon: CheckCircle, color: 'green' },
-    { label: 'Draft', value: '234', icon: Clock, color: 'yellow' },
-    { label: 'Pending Review', value: '121', icon: AlertCircle, color: 'orange' }
+    { label: 'Content Nodes', value: contentNodes.length.toString(), icon: BookOpen, color: 'blue' },
+    { label: 'Domains', value: contentNodes.filter(n => n.node_type === 'domain').length.toString(), icon: Target, color: 'green' },
+    { label: 'Topics', value: contentNodes.filter(n => n.node_type === 'topic').length.toString(), icon: FileText, color: 'yellow' },
+    { label: 'Lessons', value: contentNodes.filter(n => n.node_type === 'lesson').length.toString(), icon: Video, color: 'purple' }
   ]
 
-  const contentItems = [
-    {
-      id: 1,
-      title: 'Risk Management Fundamentals',
-      type: 'Study Guide',
-      certification: 'PMP',
-      status: 'Published',
-      lastModified: '2024-01-30',
-      author: 'AI Generated',
-      views: 1234
-    },
-    {
-      id: 2,
-      title: 'Project Scope Definition',
-      type: 'Video',
-      certification: 'PMP',
-      status: 'Draft',
-      lastModified: '2024-01-29',
-      author: 'Jordan Smith',
-      views: 0
-    },
-    {
-      id: 3,
-      title: 'Quality Management Quiz',
-      type: 'Assessment',
-      certification: 'PMP',
-      status: 'Pending Review',
-      lastModified: '2024-01-28',
-      author: 'AI Generated',
-      views: 567
-    }
-  ]
+  const filteredNodes = contentNodes.filter(node =>
+    node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    node.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BookOpen },
-    { id: 'content', label: 'Content Library', icon: FileText },
-    { id: 'templates', label: 'Templates', icon: Edit },
+    { id: 'content', label: 'Content Nodes', icon: FileText },
+    { id: 'generation', label: 'AI Generation', icon: Sparkles },
     { id: 'bulk', label: 'Bulk Operations', icon: Upload }
   ]
 
@@ -114,50 +197,29 @@ export default function ContentManagementPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button className="h-20 flex flex-col space-y-2">
+                  <Button 
+                    className="h-20 flex flex-col space-y-2"
+                    onClick={() => setActiveTab('content')}
+                  >
                     <Plus className="h-6 w-6" />
-                    <span>Create New Content</span>
+                    <span>Create Content Node</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex flex-col space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col space-y-2"
+                    onClick={() => setActiveTab('generation')}
+                  >
+                    <Sparkles className="h-6 w-6" />
+                    <span>AI Generation</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col space-y-2"
+                    onClick={() => setActiveTab('bulk')}
+                  >
                     <Upload className="h-6 w-6" />
-                    <span>Bulk Upload</span>
+                    <span>Bulk Operations</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex flex-col space-y-2">
-                    <Eye className="h-6 w-6" />
-                    <span>Review Queue</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">New study guide published</p>
-                      <p className="text-xs text-gray-500">Risk Management Fundamentals - 2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Content pending review</p>
-                      <p className="text-xs text-gray-500">Quality Management Quiz - 4 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Template updated</p>
-                      <p className="text-xs text-gray-500">Assessment Template v2.1 - 6 hours ago</p>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -173,7 +235,7 @@ export default function ContentManagementPage() {
                 <div className="flex space-x-4">
                   <div className="flex-1">
                     <Input
-                      placeholder="Search content..."
+                      placeholder="Search content nodes..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full"
@@ -185,123 +247,207 @@ export default function ContentManagementPage() {
                   </Button>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    New Content
+                    New Node
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Content Table */}
+            {/* Content Nodes Table */}
             <Card>
               <CardHeader>
-                <CardTitle>Content Library</CardTitle>
-                <CardDescription>Manage all learning content and materials</CardDescription>
+                <CardTitle>Content Nodes</CardTitle>
+                <CardDescription>Manage learning content structure and hierarchy</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Title</th>
-                        <th className="text-left p-2">Type</th>
-                        <th className="text-left p-2">Certification</th>
-                        <th className="text-left p-2">Status</th>
-                        <th className="text-left p-2">Last Modified</th>
-                        <th className="text-left p-2">Views</th>
-                        <th className="text-left p-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {contentItems.map((item) => (
-                        <tr key={item.id} className="border-b hover:bg-gray-50">
-                          <td className="p-2">
-                            <div>
-                              <p className="font-medium">{item.title}</p>
-                              <p className="text-xs text-gray-500">by {item.author}</p>
-                            </div>
-                          </td>
-                          <td className="p-2">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                              {item.type}
-                            </span>
-                          </td>
-                          <td className="p-2">{item.certification}</td>
-                          <td className="p-2">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              item.status === 'Published' ? 'bg-green-100 text-green-800' :
-                              item.status === 'Draft' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-orange-100 text-orange-800'
-                            }`}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-sm text-gray-600">{item.lastModified}</td>
-                          <td className="p-2 text-sm text-gray-600">{item.views}</td>
-                          <td className="p-2">
-                            <div className="flex space-x-2">
-                              <Button size="sm" variant="outline">
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <MoreHorizontal className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </td>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    Loading content nodes...
+                  </div>
+                ) : filteredNodes.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500">No content nodes found</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-3">Name</th>
+                          <th className="text-left p-3">Type</th>
+                          <th className="text-left p-3">Difficulty</th>
+                          <th className="text-left p-3">Duration</th>
+                          <th className="text-left p-3">AI Actions</th>
+                          <th className="text-left p-3">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredNodes.map((node) => (
+                          <tr key={node.id} className="border-b hover:bg-gray-50">
+                            <td className="p-3">
+                              <div>
+                                <p className="font-medium">{node.name}</p>
+                                <p className="text-sm text-gray-500 line-clamp-2">
+                                  {node.description}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                node.node_type === 'domain' ? 'bg-blue-100 text-blue-800' :
+                                node.node_type === 'topic' ? 'bg-green-100 text-green-800' :
+                                node.node_type === 'lesson' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {node.node_type}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                node.difficulty === 'beginner' ? 'bg-green-100 text-green-800' :
+                                node.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {node.difficulty}
+                              </span>
+                            </td>
+                            <td className="p-3 text-sm text-gray-600">
+                              {node.estimated_minutes} min
+                            </td>
+                            <td className="p-3">
+                              <div className="flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => generateQuestions(node.id, node.name)}
+                                  disabled={generationState.isGenerating}
+                                  className="text-xs"
+                                >
+                                  {generationState.isGenerating && 
+                                   generationState.type === 'questions' && 
+                                   generationState.nodeId === node.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <HelpCircle className="h-3 w-3" />
+                                  )}
+                                  <span className="ml-1">Questions</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => generateKeyConcepts(node.id, node.name)}
+                                  disabled={generationState.isGenerating}
+                                  className="text-xs"
+                                >
+                                  {generationState.isGenerating && 
+                                   generationState.type === 'concepts' && 
+                                   generationState.nodeId === node.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="h-3 w-3" />
+                                  )}
+                                  <span className="ml-1">Concepts</span>
+                                </Button>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <div className="flex space-x-2">
+                                <Button size="sm" variant="outline">
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline">
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline">
+                                  <MoreHorizontal className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         )
 
-      case 'templates':
+      case 'generation':
         return (
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Content Templates</CardTitle>
-                <CardDescription>Manage reusable templates for content creation</CardDescription>
+                <CardTitle className="flex items-center">
+                  <Sparkles className="h-5 w-5 mr-2 text-purple-600" />
+                  AI Content Generation
+                </CardTitle>
+                <CardDescription>
+                  Generate questions and key concepts using artificial intelligence
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="border-2 border-dashed border-gray-300 hover:border-blue-500 cursor-pointer">
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="border-2 border-dashed border-purple-300">
                     <CardContent className="pt-6 text-center">
-                      <Plus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                      <p className="font-medium">Create New Template</p>
-                      <p className="text-sm text-gray-500">Start from scratch</p>
+                      <HelpCircle className="h-12 w-12 mx-auto text-purple-600 mb-4" />
+                      <h3 className="font-medium mb-2">Generate Questions</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Create multiple-choice questions for any topic using AI
+                      </p>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Select a content node from the Content Nodes tab to generate questions
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setActiveTab('content')}
+                      >
+                        Go to Content Nodes
+                      </Button>
                     </CardContent>
                   </Card>
                   
-                  <Card>
-                    <CardContent className="pt-6">
-                      <FileText className="h-8 w-8 text-blue-600 mb-4" />
-                      <h3 className="font-medium mb-2">Study Guide Template</h3>
-                      <p className="text-sm text-gray-600 mb-4">Standard format for study materials</p>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">Edit</Button>
-                        <Button size="sm" variant="outline">Use</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="pt-6">
-                      <Video className="h-8 w-8 text-green-600 mb-4" />
-                      <h3 className="font-medium mb-2">Video Lesson Template</h3>
-                      <p className="text-sm text-gray-600 mb-4">Template for video-based content</p>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">Edit</Button>
-                        <Button size="sm" variant="outline">Use</Button>
-                      </div>
+                  <Card className="border-2 border-dashed border-blue-300">
+                    <CardContent className="pt-6 text-center">
+                      <BookOpen className="h-12 w-12 mx-auto text-blue-600 mb-4" />
+                      <h3 className="font-medium mb-2">Generate Key Concepts</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Create comprehensive study materials and key concepts
+                      </p>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Select a content node from the Content Nodes tab to generate concepts
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setActiveTab('content')}
+                      >
+                        Go to Content Nodes
+                      </Button>
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Generation Status */}
+                {generationState.isGenerating && (
+                  <Card className="border-purple-200 bg-purple-50">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-purple-600 mr-3" />
+                        <div>
+                          <p className="font-medium text-purple-900">
+                            Generating {generationState.type === 'questions' ? 'Questions' : 'Key Concepts'}...
+                          </p>
+                          <p className="text-sm text-purple-700">
+                            This may take a few moments. Please wait.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -340,7 +486,7 @@ export default function ContentManagementPage() {
                       </Button>
                       <Button variant="outline" className="w-full justify-start">
                         <Download className="h-4 w-4 mr-2" />
-                        Export Templates
+                        Export Questions
                       </Button>
                     </div>
                   </div>
@@ -364,7 +510,7 @@ export default function ContentManagementPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Content Management</h1>
           <p className="text-gray-600 mt-1">
-            Create, manage, and organize learning content and materials
+            Create, manage, and generate learning content with AI assistance
           </p>
         </div>
 

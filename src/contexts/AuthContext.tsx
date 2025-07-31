@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
-  user: User | null
+  user: (User & { role?: string }) | null
   session: Session | null
   loading: boolean
   signOut: () => Promise<void>
@@ -37,8 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      let userWithRole = session?.user ?? null
+      
+      // Temporary admin recognition for testing
+      if (userWithRole && userWithRole.email === 'usermufran234@gmail.com') {
+        userWithRole = { ...userWithRole, role: 'admin' }
+      }
+      
       setSession(session)
-      setUser(session?.user ?? null)
+      setUser(userWithRole)
       setLoading(false)
 
       // Handle auth state changes
@@ -53,8 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!profile) {
           router.push('/onboarding')
         } else {
-          // Redirect based on user role
-          if (profile.role === 'admin') {
+          // Redirect based on user role (or temporary admin status)
+          const isAdmin = profile.role === 'admin' || session.user.email === 'usermufran234@gmail.com'
+          if (isAdmin) {
             router.push('/admin')
           } else {
             router.push('/dashboard')
