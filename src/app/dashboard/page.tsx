@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,79 +20,103 @@ import {
   Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
+import { getUserProfile, getAdaptiveLearningPath, getUserGamification } from '@/lib/supabase-queries'
+
+interface UserProfile {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  tier: 'free' | 'pro' | 'admin'
+  role: 'learner' | 'admin'
+}
+
+interface LearningTopic {
+  id: string
+  name: string
+  description: string
+  estimated_minutes: number
+  masteryLevel: number
+  lastAttempted: string | null
+}
+
+interface GamificationData {
+  xp: number
+  level: number
+  current_streak: number
+  achievements: string[]
+}
 
 export default function Dashboard() {
-  const { user, isLoading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [learningPath, setLearningPath] = useState<LearningTopic[]>([])
+  const [gamification, setGamification] = useState<GamificationData | null>(null)
+  const [dataLoading, setDataLoading] = useState(true)
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!loading && !user) {
       router.push('/')
-    } else if (!isLoading && user && user.tier === 'admin') {
-      router.push('/admin')
+      return
     }
-  }, [user, isLoading, router])
 
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    if (user) {
+      loadUserData()
+    }
+  }, [user, loading, router])
+
+  const loadUserData = async () => {
+    if (!user) return
+
+    try {
+      setDataLoading(true)
+      
+      // Load user profile
+      const profileData = await getUserProfile(user.id)
+      if (profileData) {
+        setProfile(profileData)
+        
+        // Redirect admin users
+        if (profileData.role === 'admin') {
+          router.push('/admin')
+          return
+        }
+      }
+
+      // Load learning path (adaptive for pro users)
+      const pathData = await getAdaptiveLearningPath(user.id)
+      setLearningPath(pathData)
+
+      // Load gamification data
+      const gamData = await getUserGamification(user.id)
+      setGamification(gamData)
+
+    } catch (error) {
+      console.error('Error loading user data:', error)
+    } finally {
+      setDataLoading(false)
+    }
   }
 
-  if (!user) {
+  if (loading || dataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-900 mx-auto"></div>
+          <p className="mt-4 text-blue-900">Loading your dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user || !profile) {
     return null
   }
 
-  // Simple mock data directly in component to avoid import issues
-  const mockTopics = [
-    {
-      nodeId: 'topic-scope-1',
-      nodeName: 'Scope Management',
-      description: 'Learn to define and control project scope effectively',
-      masteryLevel: 0.4,
-      estimatedTime: '30 min',
-      questionCount: 8
-    },
-    {
-      nodeId: 'topic-time-1',
-      nodeName: 'Time Management',
-      description: 'Master project scheduling and timeline management',
-      masteryLevel: 0.2,
-      estimatedTime: '45 min',
-      questionCount: 12
-    },
-    {
-      nodeId: 'topic-cost-1',
-      nodeName: 'Cost Management',
-      description: 'Control project budgets and financial resources',
-      masteryLevel: 0.0,
-      estimatedTime: '40 min',
-      questionCount: 10
-    },
-    {
-      nodeId: 'topic-quality-1',
-      nodeName: 'Quality Management',
-      description: 'Ensure project deliverables meet quality standards',
-      masteryLevel: 0.0,
-      estimatedTime: '35 min',
-      questionCount: 9
-    },
-    {
-      nodeId: 'topic-risk-1',
-      nodeName: 'Risk Management',
-      description: 'Identify, analyze, and respond to project risks',
-      masteryLevel: 0.0,
-      estimatedTime: '50 min',
-      questionCount: 15
-    }
-  ]
-
-  // Sort topics for Pro users (lowest mastery first)
-  const sortedTopics = user.tier === 'pro' 
-    ? [...mockTopics].sort((a, b) => a.masteryLevel - b.masteryLevel)
-    : mockTopics
-
   // Calculate overall progress
-  const totalMastery = mockTopics.reduce((sum, topic) => sum + topic.masteryLevel, 0)
-  const averageMastery = mockTopics.length > 0 ? totalMastery / mockTopics.length : 0
+  const totalMastery = learningPath.reduce((sum, topic) => sum + topic.masteryLevel, 0)
+  const averageMastery = learningPath.length > 0 ? totalMastery / learningPath.length : 0
   const overallProgress = Math.round(averageMastery * 100)
 
   return (
@@ -103,10 +127,10 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user.firstName}! 👋
+            Welcome back, {profile.first_name}! 👋
           </h1>
           <p className="text-gray-600 mt-2">
-            {user.tier === 'pro' 
+            {profile.tier === 'pro' 
               ? 'Your adaptive learning path is optimized based on your progress'
               : 'Upgrade to Pro for personalized learning paths and advanced features'
             }
@@ -121,7 +145,7 @@ export default function Dashboard() {
                 <Trophy className="h-8 w-8 text-yellow-500" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">XP Points</p>
-                  <p className="text-2xl font-bold text-gray-900">{user.gamification?.xp || 0}</p>
+                  <p className="text-2xl font-bold text-gray-900">{gamification?.xp || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -134,7 +158,7 @@ export default function Dashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Current Streak</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {user.gamification?.current_streak || 0} 🔥
+                    {gamification?.current_streak || 0} 🔥
                   </p>
                 </div>
               </div>
@@ -147,7 +171,7 @@ export default function Dashboard() {
                 <Star className="h-8 w-8 text-blue-500" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Level</p>
-                  <p className="text-2xl font-bold text-gray-900">{user.gamification?.level || 1}</p>
+                  <p className="text-2xl font-bold text-gray-900">{gamification?.level || 1}</p>
                 </div>
               </div>
             </CardContent>
@@ -173,11 +197,11 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <BookOpen className="h-5 w-5 mr-2" />
-                  Project Management Professional (PMP)
+                  Your Learning Path
                 </CardTitle>
                 <CardDescription>
-                  {user.tier === 'pro' 
-                    ? 'Topics ordered by mastery level (lowest first)'
+                  {profile.tier === 'pro' 
+                    ? 'Topics ordered by mastery level (lowest first) - Adaptive Learning'
                     : 'Standard learning sequence'
                   }
                 </CardDescription>
@@ -191,78 +215,87 @@ export default function Dashboard() {
                   <Progress value={overallProgress} className="h-2" />
                 </div>
 
-                <div className="space-y-4">
-                  {sortedTopics.map((topic, index) => {
-                    const masteryPercent = Math.round(topic.masteryLevel * 100)
-                    const isLocked = user.tier === 'free' && index > 2 // Free users can only access first 3 topics
-                    
-                    return (
-                      <div
-                        key={topic.nodeId}
-                        className={`p-4 border rounded-lg transition-all ${
-                          isLocked 
-                            ? 'bg-gray-50 border-gray-200' 
-                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <h3 className={`font-medium ${isLocked ? 'text-gray-400' : 'text-gray-900'}`}>
-                                {topic.nodeName}
-                              </h3>
-                              {isLocked && <Lock className="h-4 w-4 ml-2 text-gray-400" />}
-                              {user.tier === 'pro' && !isLocked && (
-                                <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                  Recommended
+                {learningPath.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No learning path available yet.</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Complete your onboarding to get started with personalized content.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {learningPath.map((topic, index) => {
+                      const masteryPercent = Math.round(topic.masteryLevel * 100)
+                      const isLocked = profile.tier === 'free' && index > 2 // Free users can only access first 3 topics
+                      
+                      return (
+                        <div
+                          key={topic.id}
+                          className={`p-4 border rounded-lg transition-all ${
+                            isLocked 
+                              ? 'bg-gray-50 border-gray-200' 
+                              : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <h3 className={`font-medium ${isLocked ? 'text-gray-400' : 'text-gray-900'}`}>
+                                  {topic.name}
+                                </h3>
+                                {isLocked && <Lock className="h-4 w-4 ml-2 text-gray-400" />}
+                                {profile.tier === 'pro' && !isLocked && (
+                                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                    Recommended
+                                  </span>
+                                )}
+                              </div>
+                              <p className={`text-sm mb-2 ${isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {topic.description}
+                              </p>
+                              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                <span className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {topic.estimated_minutes} min
                                 </span>
-                              )}
+                                <span className="flex items-center">
+                                  <span className={`font-medium ${masteryPercent > 70 ? 'text-green-600' : masteryPercent > 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {masteryPercent > 70 ? 'Mastered' : masteryPercent > 40 ? 'Learning' : 'Not Started'} ({masteryPercent}%)
+                                  </span>
+                                </span>
+                              </div>
                             </div>
-                            <p className={`text-sm mb-2 ${isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {topic.description}
-                            </p>
-                            <div className="flex items-center space-x-4 text-xs text-gray-500">
-                              <span className="flex items-center">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {topic.estimatedTime}
-                              </span>
-                              <span>{topic.questionCount} questions</span>
-                              <span className="flex items-center">
-                                <span className={`font-medium ${masteryPercent > 70 ? 'text-green-600' : masteryPercent > 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                  {masteryPercent > 70 ? 'Mastered' : masteryPercent > 40 ? 'Learning' : 'Not Started'} ({masteryPercent}%)
-                                </span>
-                              </span>
+                            
+                            <div className="ml-4">
+                              {isLocked ? (
+                                <Button variant="outline" disabled size="sm">
+                                  <Lock className="h-4 w-4 mr-2" />
+                                  Pro Only
+                                </Button>
+                              ) : (
+                                <Link href={`/learn/${topic.id}`}>
+                                  <Button size="sm">
+                                    <Play className="h-4 w-4 mr-2" />
+                                    {masteryPercent > 0 ? 'Continue' : 'Start'}
+                                  </Button>
+                                </Link>
+                              )}
                             </div>
                           </div>
                           
-                          <div className="ml-4">
-                            {isLocked ? (
-                              <Button variant="outline" disabled size="sm">
-                                <Lock className="h-4 w-4 mr-2" />
-                                Pro Only
-                              </Button>
-                            ) : (
-                              <Link href={`/learn/${topic.nodeId}`}>
-                                <Button size="sm">
-                                  <Play className="h-4 w-4 mr-2" />
-                                  {masteryPercent > 0 ? 'Continue' : 'Start'}
-                                </Button>
-                              </Link>
-                            )}
-                          </div>
+                          {!isLocked && (
+                            <div className="mt-3">
+                              <Progress value={masteryPercent} className="h-1" />
+                            </div>
+                          )}
                         </div>
-                        
-                        {!isLocked && (
-                          <div className="mt-3">
-                            <Progress value={masteryPercent} className="h-1" />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                )}
 
-                {user.tier === 'free' && (
+                {profile.tier === 'free' && (
                   <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-2">Unlock Your Full Potential</h4>
                     <p className="text-sm text-blue-700 mb-3">
@@ -279,7 +312,7 @@ export default function Dashboard() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {user.tier === 'free' && (
+            {profile.tier === 'free' && (
               <Card className="mb-6 border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -331,14 +364,20 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {(user.gamification?.achievements || ['first_lesson', 'three_day_streak']).slice(-3).map((achievement, index) => (
+                  {gamification?.achievements?.slice(-3).map((achievement, index) => (
                     <div key={index} className="flex items-center p-2 bg-yellow-50 rounded-lg">
                       <Trophy className="h-4 w-4 text-yellow-600 mr-2" />
                       <span className="text-sm font-medium capitalize">
-                        {typeof achievement === 'string' ? achievement.replace('_', ' ') : achievement.name || 'Achievement'}
+                        {achievement.replace('_', ' ')}
                       </span>
                     </div>
-                  ))}
+                  )) || (
+                    <div className="text-center py-4">
+                      <Trophy className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">No achievements yet</p>
+                      <p className="text-xs text-gray-500">Start learning to earn your first achievement!</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -1,75 +1,85 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { User, Session } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import type { User } from '@/core/domain/types'
-import * as repo from '@/lib/mock-data.repository'
 
 interface AuthContextType {
   user: User | null
-  login: (userId: string) => Promise<void>
-  logout: () => void
-  isLoading: boolean
+  session: Session | null
+  loading: boolean
+  signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  loading: true,
+  signOut: async () => {}
+})
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUserId = localStorage.getItem('sisukai_user_id')
-    if (storedUserId) {
-      repo.getUserById(storedUserId).then(userData => {
-        if (userData) {
-          setUser(userData)
-        }
-        setIsLoading(false)
-      })
-    } else {
-      setIsLoading(false)
-    }
-  }, [])
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
-  const login = async (userId: string) => {
-    setIsLoading(true)
-    try {
-      const userData = await repo.getUserById(userId)
-      if (userData) {
-        setUser(userData)
-        localStorage.setItem('sisukai_user_id', userId)
-        
-        // Role-based redirection
-        if (userData.role === 'admin') {
-          router.push('/admin')
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
+
+      // Handle auth state changes
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Check if user has a profile, if not redirect to onboarding
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+
+        if (!profile) {
+          router.push('/onboarding')
         } else {
-          router.push('/dashboard')
+          // Redirect based on user role
+          if (profile.role === 'admin') {
+            router.push('/admin')
+          } else {
+            router.push('/dashboard')
+          }
         }
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/')
       }
-    } catch (error) {
-      console.error('Login failed:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    })
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('sisukai_user_id')
-    router.push('/')
+    return () => subscription.unsubscribe()
+  }, [router])
+
+  const signOut = async () => {
+    await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext)
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider')
