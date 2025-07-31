@@ -7,7 +7,7 @@ import { useEffect } from 'react'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { mockFeedbackQueue } from '@/lib/mock-data'
+import { getFeedbackQueue } from '@/lib/mock-data.repository'
 import { formatDateTime } from '@/lib/utils'
 import { 
   MessageSquare, 
@@ -24,19 +24,30 @@ export default function FeedbackQueue() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const [selectedFeedback, setSelectedFeedback] = useState<string | null>(null)
-  const [feedbackList, setFeedbackList] = useState(mockFeedbackQueue)
+  const [feedbackList, setFeedbackList] = useState<any[]>([])
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'administrator')) {
+    if (!isLoading && (!user || user.role !== 'admin')) {
       router.push('/')
+    } else if (user && user.role === 'admin') {
+      // Load feedback data
+      const loadData = async () => {
+        try {
+          const feedbackData = await getFeedbackQueue()
+          setFeedbackList(feedbackData)
+        } catch (error) {
+          console.error('Error loading feedback data:', error)
+        }
+      }
+      loadData()
     }
   }, [user, isLoading, router])
 
-  if (isLoading) {
+  if (isLoading || feedbackList.length === 0) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
-  if (!user || user.role !== 'administrator') {
+  if (!user || user.role !== 'admin') {
     return null
   }
 

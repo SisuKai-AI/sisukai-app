@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { mockUsers } from '@/lib/mock-data'
+import { mockUsers } from '@/lib/mock-data.repository'
 
 export default function LoginPage() {
   const [selectedUser, setSelectedUser] = useState<string>('')

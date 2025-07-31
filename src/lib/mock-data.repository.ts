@@ -17,8 +17,8 @@ import type {
 
 // --- MOCK DATA ---
 export const mockUsers: Record<string, User> = {
-  'user-learner-free': {
-    id: 'user-learner-free',
+  'user-free-1': {
+    id: 'user-free-1',
     email: 'alex.johnson@example.com',
     name: 'Alex Johnson',
     tier: 'free',
@@ -66,8 +66,8 @@ export const mockUsers: Record<string, User> = {
       monthlyXP: 1250
     }
   },
-  'user-learner-pro': {
-    id: 'user-learner-pro',
+  'user-pro-1': {
+    id: 'user-pro-1',
     email: 'sarah.chen@example.com',
     name: 'Sarah Chen',
     tier: 'pro',
@@ -125,8 +125,8 @@ export const mockUsers: Record<string, User> = {
       monthlyXP: 3200
     }
   },
-  'user-admin': {
-    id: 'user-admin',
+  'admin-1': {
+    id: 'admin-1',
     email: 'jordan.smith@sisukai.com',
     name: 'Jordan Smith',
     tier: 'pro',
@@ -491,5 +491,116 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
     return true
   }
   return false
+}
+
+
+// Analytics and feedback functions
+export const mockAnalytics = {
+  platformStats: {
+    totalUsers: 15420,
+    activeUsers: 8934,
+    totalCertifications: 4,
+    totalQuestions: 1250,
+    averageCompletionRate: 78.5
+  },
+  userProgress: {
+    'user-pro-1': {
+      totalStudyTime: 2340, // minutes
+      completedTopics: 8,
+      averageScore: 87.3,
+      streakDays: 14,
+      lastActive: '2024-01-30T16:45:00Z'
+    },
+    'user-free-1': {
+      totalStudyTime: 180,
+      completedTopics: 2,
+      averageScore: 72.1,
+      streakDays: 3,
+      lastActive: '2024-01-30T14:30:00Z'
+    }
+  },
+  recentActivity: [
+    { action: 'lesson_completed', userId: 'user-pro-1', timestamp: '2024-01-30T16:45:00Z' },
+    { action: 'exam_passed', userId: 'user-free-1', timestamp: '2024-01-30T14:30:00Z' },
+    { action: 'streak_milestone', userId: 'user-pro-1', timestamp: '2024-01-30T12:00:00Z' }
+  ]
+}
+
+export const mockFeedbackQueue = [
+  {
+    feedbackId: 'fb-1',
+    questionId: 'q-risk-1',
+    questionText: 'What is the primary purpose of a risk register?',
+    feedbackReasons: ['unclear', 'wrong_answer'],
+    userComment: 'The explanation is confusing and doesn\'t clearly explain why option B is correct.',
+    status: 'open',
+    submittedBy: 'user-pro-1',
+    submittedAt: '2024-01-29T10:30:00Z',
+    priority: 'medium'
+  },
+  {
+    feedbackId: 'fb-2',
+    questionId: 'q-scope-3',
+    questionText: 'Which document formally authorizes a project?',
+    feedbackReasons: ['typo'],
+    userComment: 'There\'s a typo in option C - "chartar" should be "charter".',
+    status: 'resolved',
+    submittedBy: 'user-free-1',
+    submittedAt: '2024-01-28T09:15:00Z',
+    priority: 'low',
+    resolvedAt: '2024-01-29T08:00:00Z',
+    resolvedBy: 'admin-1'
+  },
+  {
+    feedbackId: 'fb-3',
+    questionId: 'q-time-2',
+    questionText: 'What is the critical path in project management?',
+    feedbackReasons: ['outdated'],
+    userComment: 'This question references outdated PMBOK standards. Should be updated to 7th edition.',
+    status: 'in_progress',
+    submittedBy: 'user-pro-1',
+    submittedAt: '2024-01-27T14:20:00Z',
+    priority: 'high'
+  }
+]
+
+export const getAnalytics = async (): Promise<typeof mockAnalytics> => {
+  console.log('[Repository] Fetching analytics data')
+  return mockAnalytics
+}
+
+export const getFeedbackQueue = async (): Promise<typeof mockFeedbackQueue> => {
+  console.log('[Repository] Fetching feedback queue')
+  return mockFeedbackQueue
+}
+
+
+export const getFilteredCertifications = async (filters: any = {}): Promise<Certification[]> => {
+  console.log('[Repository] Filtering certifications with filters:', filters)
+  
+  let filtered = [...mockCertifications]
+  
+  if (filters.category && filters.category !== 'all') {
+    filtered = filtered.filter(cert => 
+      cert.category.toLowerCase() === filters.category.toLowerCase()
+    )
+  }
+  
+  if (filters.difficulty && filters.difficulty !== 'all') {
+    filtered = filtered.filter(cert => 
+      cert.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
+    )
+  }
+  
+  if (filters.search) {
+    const searchTerm = filters.search.toLowerCase()
+    filtered = filtered.filter(cert => 
+      cert.title.toLowerCase().includes(searchTerm) ||
+      cert.description.toLowerCase().includes(searchTerm) ||
+      cert.provider.toLowerCase().includes(searchTerm)
+    )
+  }
+  
+  return filtered
 }
 

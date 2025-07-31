@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { getFilteredCertifications } from '@/lib/mock-data'
+import { getFilteredCertifications } from '@/lib/mock-data.repository'
 import { getDifficultyColor } from '@/lib/utils'
 import { 
   Search, 

@@ -2,11 +2,11 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { mockAnalytics, mockFeedbackQueue } from '@/lib/mock-data'
+import { getAnalytics, getFeedbackQueue } from '@/lib/mock-data.repository'
 import { 
   Users, 
   BookOpen, 
@@ -24,14 +24,31 @@ import Link from 'next/link'
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [feedbackQueue, setFeedbackQueue] = useState<any[]>([])
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'admin')) {
       router.push('/')
+    } else if (user && user.role === 'admin') {
+      // Load data
+      const loadData = async () => {
+        try {
+          const [analyticsData, feedbackData] = await Promise.all([
+            getAnalytics(),
+            getFeedbackQueue()
+          ])
+          setAnalytics(analyticsData)
+          setFeedbackQueue(feedbackData)
+        } catch (error) {
+          console.error('Error loading admin data:', error)
+        }
+      }
+      loadData()
     }
   }, [user, isLoading, router])
 
-  if (isLoading) {
+  if (isLoading || !analytics) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
@@ -39,8 +56,8 @@ export default function AdminDashboard() {
     return null
   }
 
-  const { platformStats } = mockAnalytics
-  const pendingFeedback = mockFeedbackQueue.filter(f => f.status === 'open')
+  const { platformStats } = analytics
+  const pendingFeedback = feedbackQueue.filter(f => f.status === 'open')
   const highPriorityFeedback = pendingFeedback.filter(f => f.priority === 'high')
 
   return (
