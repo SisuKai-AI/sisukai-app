@@ -2,12 +2,12 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { getUserLearningPath, getCertificationById } from '@/lib/mock-data'
+import { getLearningPathForUser, getCertificationById } from '@/lib/mock-data.repository'
 import { getMasteryColor, getMasteryLabel, getStreakEmoji, formatTime } from '@/lib/utils'
 import { 
   Trophy, 
@@ -26,12 +26,29 @@ import Link from 'next/link'
 export default function Dashboard() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
+  const [learningPath, setLearningPath] = useState<any[]>([])
+  const [certification, setCertification] = useState<any>(null)
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/')
     } else if (!isLoading && user && user.tier === 'admin') {
       router.push('/admin')
+    } else if (user) {
+      // Load learning path and certification data
+      const loadData = async () => {
+        try {
+          const [pathData, certData] = await Promise.all([
+            getLearningPathForUser(user.id, 'cert-pmp-1'),
+            getCertificationById('cert-pmp-1')
+          ])
+          setLearningPath(pathData?.topics || [])
+          setCertification(certData)
+        } catch (error) {
+          console.error('Error loading dashboard data:', error)
+        }
+      }
+      loadData()
     }
   }, [user, isLoading, router])
 
@@ -43,10 +60,6 @@ export default function Dashboard() {
     return null
   }
 
-  // Get user's learning path for PMP certification
-  const learningPath = getUserLearningPath(user.id, 'cert-pmp-1')
-  const certification = getCertificationById('cert-pmp-1')
-  
   // Sort learning path based on user tier
   const sortedLearningPath = user.tier === 'pro' 
     ? [...learningPath].sort((a, b) => a.masteryLevel - b.masteryLevel)
