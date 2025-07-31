@@ -7,7 +7,7 @@ import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { getLearningPathForUser, getCertificationById } from '@/lib/mock-data.repository'
+import { getUserLearningPath, getCertificationById } from '@/lib/mock-data'
 import { getMasteryColor, getMasteryLabel, getStreakEmoji, formatTime } from '@/lib/utils'
 import { 
   Trophy, 
@@ -38,11 +38,9 @@ export default function Dashboard() {
       // Load learning path and certification data
       const loadData = async () => {
         try {
-          const [pathData, certData] = await Promise.all([
-            getLearningPathForUser(user.id, 'cert-pmp-1'),
-            getCertificationById('cert-pmp-1')
-          ])
-          setLearningPath(pathData?.topics || [])
+          const pathData = getUserLearningPath(user.id, 'cert-pmp-1')
+          const certData = getCertificationById('cert-pmp-1')
+          setLearningPath(pathData || [])
           setCertification(certData)
         } catch (error) {
           console.error('Error loading dashboard data:', error)
