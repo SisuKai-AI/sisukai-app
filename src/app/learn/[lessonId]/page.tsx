@@ -7,7 +7,7 @@ import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { mockLessons, getLessonContent } from '@/lib/mock-data'
+import { getLessonContent } from '@/lib/mock-data.repository'
 import { 
   BookOpen, 
   CheckCircle, 

@@ -7,7 +7,7 @@ import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getCertificationById } from '@/lib/mock-data'
+import { getCertificationById } from '@/lib/mock-data.repository'
 import { 
   ArrowLeft,
   Save,

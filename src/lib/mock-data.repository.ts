@@ -604,3 +604,48 @@ export const getFilteredCertifications = async (filters: any = {}): Promise<Cert
   return filtered
 }
 
+
+export const mockExams = {
+  'cert-pmp-1': {
+    full_sim: { 
+      questionCount: 180, 
+      timeLimit: 240, // minutes
+      description: 'Complete PMP simulation exam with 180 questions',
+      passingScore: 61
+    },
+    domain_specific: [
+      { 
+        domainId: 'domain-planning-1', 
+        domainName: 'Planning',
+        questionCount: 25,
+        timeLimit: 35,
+        description: 'Domain-specific practice for Planning processes'
+      },
+      { 
+        domainId: 'domain-executing-1', 
+        domainName: 'Executing',
+        questionCount: 30,
+        timeLimit: 40,
+        description: 'Domain-specific practice for Executing processes'
+      },
+      { 
+        domainId: 'domain-monitoring-1', 
+        domainName: 'Monitoring & Controlling',
+        questionCount: 20,
+        timeLimit: 30,
+        description: 'Domain-specific practice for Monitoring & Controlling'
+      }
+    ],
+    quick_quiz: {
+      questionCount: 10,
+      timeLimit: 15,
+      description: 'Quick knowledge check with 10 random questions'
+    }
+  }
+}
+
+export const getExamInfo = async (certId: string): Promise<any> => {
+  console.log(`[Repository] Getting exam info for certification: ${certId}`)
+  return mockExams[certId] || null
+}
+

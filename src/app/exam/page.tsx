@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import Navigation from '@/components/Navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { mockExams } from '@/lib/mock-data'
+import { mockExams } from '@/lib/mock-data.repository'
 import { 
   Trophy, 
   Clock, 
