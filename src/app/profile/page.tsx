@@ -38,6 +38,9 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [isEditing, setIsEditing] = useState(false)
   
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin'
+  
   const [profileData, setProfileData] = useState({
     // Basic Information
     firstName: user?.firstName || '',
@@ -126,6 +129,79 @@ export default function ProfilePage() {
   ]
 
   const renderTabContent = () => {
+    // Admin users get different profile content
+    if (isAdmin) {
+      switch (activeTab) {
+        case 'overview':
+          return (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Profile Overview</CardTitle>
+                  <CardDescription>Administrative account information and settings</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Name</label>
+                      <p className="text-lg">{user?.name || 'Admin User'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Email</label>
+                      <p className="text-lg">{user?.email || 'admin@sisukai.com'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Role</label>
+                      <p className="text-lg capitalize">{user?.role || 'Administrator'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Access Level</label>
+                      <p className="text-lg">Full Administrative Access</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Administrative Tools</CardTitle>
+                  <CardDescription>Quick access to admin functions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button variant="outline" className="h-20 flex flex-col">
+                      <Users className="h-6 w-6 mb-2" />
+                      User Management
+                    </Button>
+                    <Button variant="outline" className="h-20 flex flex-col">
+                      <BookOpen className="h-6 w-6 mb-2" />
+                      Content Management
+                    </Button>
+                    <Button variant="outline" className="h-20 flex flex-col">
+                      <TrendingUp className="h-6 w-6 mb-2" />
+                      Analytics
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        default:
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Settings</CardTitle>
+                <CardDescription>Administrative configuration options</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p>Admin-specific settings for {activeTab} would go here.</p>
+              </CardContent>
+            </Card>
+          )
+      }
+    }
+    
+    // Learner users get the original profile content
     switch (activeTab) {
       case 'overview':
         return (

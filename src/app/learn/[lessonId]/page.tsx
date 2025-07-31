@@ -54,10 +54,25 @@ export default function LessonPage() {
   const [showKeyConcepts, setShowKeyConcepts] = useState(false)
   const [earnedXP, setEarnedXP] = useState(0)
   const [showXPAnimation, setShowXPAnimation] = useState(false)
+  const [lessonContent, setLessonContent] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const lessonContent = getLessonContent(lessonId)
-  const { questions, keyConcepts } = lessonContent
+  useEffect(() => {
+    const loadLessonContent = async () => {
+      try {
+        const content = await getLessonContent(lessonId)
+        setLessonContent(content)
+      } catch (error) {
+        console.error('Error loading lesson content:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadLessonContent()
+  }, [lessonId])
 
+  const questions = lessonContent?.questions || []
+  const keyConcepts = lessonContent?.keyConcepts || []
   const currentQuestion: Question | null = questions[currentQuestionIndex] || null
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0
 
@@ -67,7 +82,28 @@ export default function LessonPage() {
     }
   }, [user, router])
 
-  if (!user || !currentQuestion) {
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Please log in</h2>
+          <Button onClick={() => router.push('/')}>Go to Login</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading lesson...</h2>
+        </div>
+      </div>
+    )
+  }
+
+  if (!lessonContent || !currentQuestion) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -92,7 +128,7 @@ export default function LessonPage() {
     setShowFeedback(true)
     
     // Award XP if correct
-    if (selectedAnswer === currentQuestion.questionData.correctOptionIndex) {
+    if (isCorrect) {
       const xpAwarded = 10
       setEarnedXP(prev => prev + xpAwarded)
       setShowXPAnimation(true)
@@ -119,7 +155,8 @@ export default function LessonPage() {
     }
   }
 
-  const isCorrect = selectedAnswer === currentQuestion.questionData.correctOptionIndex
+  const isCorrect = selectedAnswer !== null && currentQuestion.options && 
+    currentQuestion.options[selectedAnswer]?.isCorrect
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -200,16 +237,17 @@ export default function LessonPage() {
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-xl leading-relaxed">
-              {currentQuestion.questionData.questionText}
+              {currentQuestion.question}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {currentQuestion.questionData.options.map((option, index) => {
+              {currentQuestion.options.map((option, index) => {
                 let buttonClass = "w-full text-left p-4 border rounded-lg transition-all "
                 
                 if (showFeedback) {
-                  if (index === currentQuestion.questionData.correctOptionIndex) {
+                  const correctIndex = currentQuestion.options.findIndex(opt => opt.isCorrect)
+                  if (index === correctIndex) {
                     buttonClass += "border-green-500 bg-green-50 text-green-800"
                   } else if (index === selectedAnswer && !isCorrect) {
                     buttonClass += "border-red-500 bg-red-50 text-red-800"
@@ -235,8 +273,8 @@ export default function LessonPage() {
                       <span className="font-medium mr-3">
                         {String.fromCharCode(65 + index)}.
                       </span>
-                      <span>{option}</span>
-                      {showFeedback && index === currentQuestion.questionData.correctOptionIndex && (
+                      <span>{option.text}</span>
+                      {showFeedback && option.isCorrect && (
                         <CheckCircle className="h-5 w-5 ml-auto text-green-600" />
                       )}
                       {showFeedback && index === selectedAnswer && !isCorrect && (
