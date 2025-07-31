@@ -1,35 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { mockUsers } from '@/lib/mock-data'
+import { mockUsers } from '@/lib/mock-data.repository'
 
 export default function LoginPage() {
   const [selectedUser, setSelectedUser] = useState<string>('')
   const { login } = useAuth()
-  const router = useRouter()
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (selectedUser) {
-      login(selectedUser)
-      
-      // Redirect based on user tier
-      const user = mockUsers[selectedUser as keyof typeof mockUsers]
-      if (user.tier === 'admin') {
-        router.push('/admin')
-      } else {
-        router.push('/dashboard')
-      }
+      await login(selectedUser)
     }
   }
 
   const userOptions = [
-    { id: 'user-free-1', label: 'Free User (Alex Johnson)', description: 'Limited features, basic learning path' },
-    { id: 'user-pro-1', label: 'Pro User (Sarah Chen)', description: 'Adaptive learning, personalized paths' },
-    { id: 'admin-1', label: 'Admin User (Jordan Smith)', description: 'Full administrative access' }
+    { id: 'user-learner-free', label: 'Free User (Alex Johnson)', description: 'Limited features, basic learning path' },
+    { id: 'user-learner-pro', label: 'Pro User (Sarah Chen)', description: 'Adaptive learning, personalized paths' },
+    { id: 'user-admin', label: 'Admin User (Jordan Smith)', description: 'Full administrative access' }
   ]
 
   return (
