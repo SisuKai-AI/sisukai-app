@@ -335,7 +335,7 @@ export default function Dashboard() {
                     <div key={index} className="flex items-center p-2 bg-yellow-50 rounded-lg">
                       <Trophy className="h-4 w-4 text-yellow-600 mr-2" />
                       <span className="text-sm font-medium capitalize">
-                        {achievement.replace('_', ' ')}
+                        {typeof achievement === 'string' ? achievement.replace('_', ' ') : achievement.name || 'Achievement'}
                       </span>
                     </div>
                   ))}

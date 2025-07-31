@@ -39,7 +39,9 @@ export default function CertificationCatalog() {
     sortBy: sortBy
   }
 
-  const certifications = getFilteredCertifications(filters)
+  const certificationsResult = getFilteredCertifications(filters)
+  console.log('Certifications result:', certificationsResult, 'Type:', typeof certificationsResult)
+  const certifications = Array.isArray(certificationsResult) ? certificationsResult : []
 
   const categories = [
     { value: 'all', label: 'All Categories' },
