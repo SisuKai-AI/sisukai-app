@@ -1,309 +1,241 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import Navigation from '@/components/Navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { 
-  Check, 
-  X, 
-  Star, 
-  Zap, 
-  Shield, 
-  Users,
-  BookOpen,
-  Award,
-  TrendingUp,
-  Clock,
-  Target,
-  Sparkles
-} from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Check, Zap, Crown, Star, ArrowRight, Shield, Clock, Users } from 'lucide-react'
 
 export default function UpgradePage() {
   const { user } = useAuth()
-  const router = useRouter()
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [loading, setLoading] = useState<string | null>(null)
 
-  if (!user) {
-    return <div className="min-h-screen flex items-center justify-center">Please log in to access this page.</div>
-  }
+  const handleUpgrade = async (plan: 'pro_monthly' | 'pro_yearly') => {
+    if (!user?.id) {
+      alert('Please log in to upgrade')
+      return
+    }
 
-  const handleUpgrade = async (plan: string) => {
-    setIsProcessing(true)
-    
-    // Simulate payment processing
-    setTimeout(() => {
-      alert(`Upgrade to ${plan} plan initiated! In a real application, this would redirect to payment processing.`)
-      setIsProcessing(false)
-      // In real app: redirect to payment gateway
-      // router.push('/payment/checkout')
-    }, 2000)
-  }
+    setLoading(plan)
 
-  const features = {
-    free: [
-      'Access to 3 certification programs',
-      'Basic study materials',
-      'Limited practice questions (50 per month)',
-      'Community forum access',
-      'Basic progress tracking',
-      'Email support'
-    ],
-    pro: [
-      'Access to ALL certification programs',
-      'Premium study materials & guides',
-      'Unlimited practice questions',
-      'Full simulation exams',
-      'Advanced analytics & insights',
-      'Personalized learning paths',
-      'Priority support (24/7)',
-      'Downloadable resources',
-      'Mobile app access',
-      'Certificate of completion',
-      'Progress sharing & badges',
-      'Expert-led webinars'
-    ],
-    advanced: [
-      'Everything in Pro Plan',
-      'AI-powered spaced repetition system',
-      'Advanced leaderboards & competitions',
-      'Custom learning path creation',
-      'Team management & collaboration',
-      'White-label branding options',
-      'API access for integrations',
-      'Advanced reporting & analytics',
-      'Dedicated account manager',
-      'Custom certification creation',
-      'Bulk user management',
-      'SSO integration',
-      'Priority feature requests',
-      'Custom training sessions'
-    ]
-  }
+    try {
+      const response = await fetch('/api/checkout/create-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          plan,
+        }),
+      })
 
-  const pricing = {
-    monthly: { price: 29, savings: 0 },
-    yearly: { price: 290, savings: 58, monthlyEquivalent: 24.17 }
+      const data = await response.json()
+
+      if (data.success) {
+        // Redirect to Paddle checkout
+        window.location.href = data.checkout_url
+      } else {
+        throw new Error(data.error || 'Failed to create checkout')
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error)
+      alert('Failed to start upgrade process. Please try again.')
+    } finally {
+      setLoading(null)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex justify-center mb-4">
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-3 rounded-full">
-              <Sparkles className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">S</span>
+              </div>
+              <span className="font-bold text-xl">SisuKai</span>
             </div>
+            <Button variant="outline" onClick={() => window.history.back()}>
+              Back to Dashboard
+            </Button>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Unlock Your Full Potential
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Upgrade to SisuKai Pro and get unlimited access to all certification programs, 
-            advanced features, and personalized learning experiences.
-          </p>
         </div>
+      </div>
 
-        {/* Current Plan Status */}
-        <Card className="mb-8 border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="bg-yellow-100 p-2 rounded-full mr-4">
-                  <Users className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Current Plan: Free</h3>
-                  <p className="text-gray-600">You're currently on our free plan with limited access.</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Upgrade to unlock</p>
-                <p className="font-semibold text-purple-600">Premium Features</p>
-              </div>
+      <div className="container mx-auto px-4 py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <Crown className="h-4 w-4" />
+            Upgrade to Pro
+          </div>
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+            Accelerate Your Learning Journey
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+            Unlock advanced features, personalized learning paths, and premium content 
+            to achieve your certification goals faster than ever before.
+          </p>
+          <div className="flex items-center justify-center gap-8 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              30-day money-back guarantee
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Pricing Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white p-1 rounded-lg border">
-            <button
-              onClick={() => setSelectedPlan('monthly')}
-              className={`px-6 py-2 rounded-md font-medium transition-colors ${
-                selectedPlan === 'monthly'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setSelectedPlan('yearly')}
-              className={`px-6 py-2 rounded-md font-medium transition-colors relative ${
-                selectedPlan === 'yearly'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Yearly
-              <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                Save 20%
-              </span>
-            </button>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Cancel anytime
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Join 10,000+ learners
+            </div>
           </div>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Free Plan */}
-          <Card className="border-gray-200">
-            <CardHeader className="text-center pb-8">
-              <div className="flex justify-center mb-4">
-                <div className="bg-gray-100 p-3 rounded-full">
-                  <BookOpen className="h-8 w-8 text-gray-600" />
-                </div>
+        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+          {/* Monthly Plan */}
+          <Card className="relative hover:shadow-xl transition-shadow duration-300">
+            <CardHeader className="pb-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="h-5 w-5 text-blue-600" />
+                <CardTitle className="text-xl">Pro Monthly</CardTitle>
               </div>
-              <CardTitle className="text-2xl">Free Plan</CardTitle>
-              <CardDescription>Perfect for getting started</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">$0</span>
-                <span className="text-gray-600">/month</span>
+              <CardDescription className="text-base">Perfect for getting started</CardDescription>
+              <div className="flex items-baseline gap-2 mt-4">
+                <span className="text-4xl font-bold">$29</span>
+                <span className="text-lg text-gray-600">/month</span>
               </div>
+              <div className="text-sm text-gray-500">Billed monthly</div>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 mb-8">
-                {features.free.map((feature, index) => (
-                  <li key={index} className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    <span className="text-gray-600">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button variant="outline" className="w-full" disabled>
-                Current Plan
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Pro Plan */}
-          <Card className="border-purple-200 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-gradient-to-l from-purple-600 to-blue-600 text-white px-4 py-1 text-sm font-medium">
-              Most Popular
-            </div>
-            <CardHeader className="text-center pb-8">
-              <div className="flex justify-center mb-4">
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-3 rounded-full">
-                  <Award className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <CardTitle className="text-2xl">Pro Plan</CardTitle>
-              <CardDescription>Everything you need to succeed</CardDescription>
-              <div className="mt-4">
-                {selectedPlan === 'yearly' ? (
+            <CardContent className="pt-0">
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <span className="text-4xl font-bold">${pricing.yearly.monthlyEquivalent}</span>
-                    <span className="text-gray-600">/month</span>
-                    <div className="text-sm text-green-600 mt-1">
-                      Billed yearly (${pricing.yearly.price}) • Save ${pricing.yearly.savings}
-                    </div>
+                    <div className="font-medium">Unlimited Certifications</div>
+                    <div className="text-sm text-gray-600">Access to all certification paths</div>
                   </div>
-                ) : (
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <span className="text-4xl font-bold">${pricing.monthly.price}</span>
-                    <span className="text-gray-600">/month</span>
+                    <div className="font-medium">Adaptive Learning Paths</div>
+                    <div className="text-sm text-gray-600">AI-powered personalized recommendations</div>
                   </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 mb-8">
-                {features.pro.map((feature, index) => (
-                  <li key={index} className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
-                ))}
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Advanced Analytics</div>
+                    <div className="text-sm text-gray-600">Detailed progress insights</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Priority Support</div>
+                    <div className="text-sm text-gray-600">Get help when you need it</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">5 Streak Freezes</div>
+                    <div className="text-sm text-gray-600">Protect your learning streak</div>
+                  </div>
+                </li>
               </ul>
               <Button 
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                onClick={() => handleUpgrade(selectedPlan)}
-                disabled={isProcessing}
+                className="w-full h-12 text-base" 
+                onClick={() => handleUpgrade('pro_monthly')}
+                disabled={loading === 'pro_monthly'}
               >
-                {isProcessing ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing...
-                  </div>
+                {loading === 'pro_monthly' ? (
+                  'Processing...'
                 ) : (
                   <>
-                    <Zap className="h-4 w-4 mr-2" />
-                    Upgrade to Pro
+                    Start Monthly Plan
+                    <ArrowRight className="h-4 w-4 ml-2" />
                   </>
                 )}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Advanced Plan */}
-          <Card className="border-gold-200 relative overflow-hidden bg-gradient-to-br from-yellow-50 to-orange-50">
-            <div className="absolute top-0 right-0 bg-gradient-to-l from-yellow-600 to-orange-600 text-white px-4 py-1 text-sm font-medium">
-              Enterprise
-            </div>
-            <CardHeader className="text-center pb-8">
-              <div className="flex justify-center mb-4">
-                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-3 rounded-full">
-                  <Star className="h-8 w-8 text-white" />
-                </div>
+          {/* Yearly Plan */}
+          <Card className="relative border-2 border-blue-500 hover:shadow-xl transition-shadow duration-300">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-full text-sm font-medium">
+                🎉 Best Value - Save 31%
               </div>
-              <CardTitle className="text-2xl">Advanced Plan</CardTitle>
-              <CardDescription>For organizations and power users</CardDescription>
-              <div className="mt-4">
-                {selectedPlan === 'yearly' ? (
-                  <div>
-                    <span className="text-4xl font-bold">$79</span>
-                    <span className="text-gray-600">/month</span>
-                    <div className="text-sm text-green-600 mt-1">
-                      Billed yearly ($790) • Save $158
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <span className="text-4xl font-bold">$99</span>
-                    <span className="text-gray-600">/month</span>
-                  </div>
-                )}
+            </div>
+            <CardHeader className="pb-8 pt-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Crown className="h-5 w-5 text-blue-600" />
+                <CardTitle className="text-xl">Pro Yearly</CardTitle>
+              </div>
+              <CardDescription className="text-base">Maximum savings and benefits</CardDescription>
+              <div className="flex items-baseline gap-2 mt-4">
+                <span className="text-4xl font-bold">$199</span>
+                <span className="text-lg text-gray-600">/year</span>
+              </div>
+              <div className="text-sm text-green-600 font-medium">
+                Save $149 compared to monthly (31% off)
               </div>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 mb-8">
-                {features.advanced.map((feature, index) => (
-                  <li key={index} className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
-                ))}
+            <CardContent className="pt-0">
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Everything in Monthly</div>
+                    <div className="text-sm text-gray-600">All monthly features included</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Star className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">31% Discount</div>
+                    <div className="text-sm text-gray-600">2 months completely free</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Star className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Exclusive Yearly Features</div>
+                    <div className="text-sm text-gray-600">Early access to new content</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Star className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Priority Feature Access</div>
+                    <div className="text-sm text-gray-600">Beta features and updates</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Star className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Unlimited Streak Freezes</div>
+                    <div className="text-sm text-gray-600">Never lose your progress</div>
+                  </div>
+                </li>
               </ul>
               <Button 
-                className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700"
-                onClick={() => handleUpgrade(`advanced-${selectedPlan}`)}
-                disabled={isProcessing}
+                className="w-full h-12 text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" 
+                onClick={() => handleUpgrade('pro_yearly')}
+                disabled={loading === 'pro_yearly'}
               >
-                {isProcessing ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing...
-                  </div>
+                {loading === 'pro_yearly' ? (
+                  'Processing...'
                 ) : (
                   <>
-                    <Star className="h-4 w-4 mr-2" />
-                    Upgrade to Advanced
+                    Start Yearly Plan
+                    <ArrowRight className="h-4 w-4 ml-2" />
                   </>
                 )}
               </Button>
@@ -311,83 +243,105 @@ export default function UpgradePage() {
           </Card>
         </div>
 
-        {/* Benefits Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-blue-100 p-3 rounded-full">
-                  <Target className="h-8 w-8 text-blue-600" />
-                </div>
+        {/* Features Comparison */}
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            Why Upgrade to Pro?
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Zap className="h-8 w-8 text-blue-600" />
               </div>
-              <h3 className="font-semibold text-lg mb-2">Personalized Learning</h3>
+              <h3 className="text-xl font-semibold mb-4">Adaptive Learning</h3>
               <p className="text-gray-600">
-                AI-powered recommendations and adaptive learning paths tailored to your progress and goals.
+                AI-powered personalized learning paths that adapt to your progress, 
+                strengths, and learning style for maximum efficiency.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Star className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold mb-4">Advanced Analytics</h3>
+              <p className="text-gray-600">
+                Detailed insights into your learning progress, performance trends, 
+                and areas for improvement with actionable recommendations.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Crown className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold mb-4">Premium Support</h3>
+              <p className="text-gray-600">
+                Priority customer support, exclusive community access, and 
+                direct feedback channels with our learning experts.
+              </p>
+            </div>
+          </div>
 
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-green-100 p-3 rounded-full">
-                  <TrendingUp className="h-8 w-8 text-green-600" />
-                </div>
+          {/* Comparison Table */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-8 py-6 bg-gray-50 border-b">
+              <h3 className="text-xl font-semibold text-center">Feature Comparison</h3>
+            </div>
+            <div className="p-8">
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="font-medium text-gray-900">Feature</div>
+                <div className="font-medium text-center text-gray-600">Free</div>
+                <div className="font-medium text-center text-blue-600">Pro</div>
+                
+                <div className="py-3 border-t">Certifications Access</div>
+                <div className="py-3 border-t text-center">Limited (3)</div>
+                <div className="py-3 border-t text-center text-green-600">✓ Unlimited</div>
+                
+                <div className="py-3 border-t">Learning Paths</div>
+                <div className="py-3 border-t text-center">Basic</div>
+                <div className="py-3 border-t text-center text-green-600">✓ Adaptive AI</div>
+                
+                <div className="py-3 border-t">Practice Questions</div>
+                <div className="py-3 border-t text-center">50/month</div>
+                <div className="py-3 border-t text-center text-green-600">✓ Unlimited</div>
+                
+                <div className="py-3 border-t">Analytics</div>
+                <div className="py-3 border-t text-center">Basic</div>
+                <div className="py-3 border-t text-center text-green-600">✓ Advanced</div>
+                
+                <div className="py-3 border-t">Support</div>
+                <div className="py-3 border-t text-center">Community</div>
+                <div className="py-3 border-t text-center text-green-600">✓ Priority</div>
+                
+                <div className="py-3 border-t">Streak Freezes</div>
+                <div className="py-3 border-t text-center">2</div>
+                <div className="py-3 border-t text-center text-green-600">✓ 5 (Unlimited yearly)</div>
               </div>
-              <h3 className="font-semibold text-lg mb-2">Advanced Analytics</h3>
-              <p className="text-gray-600">
-                Detailed insights into your learning progress, strengths, and areas for improvement.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-purple-100 p-3 rounded-full">
-                  <Shield className="h-8 w-8 text-purple-600" />
-                </div>
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Priority Support</h3>
-              <p className="text-gray-600">
-                24/7 expert support to help you succeed in your certification journey.
-              </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* FAQ Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Frequently Asked Questions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h4 className="font-semibold mb-2">Can I cancel my subscription anytime?</h4>
-              <p className="text-gray-600">
-                Yes, you can cancel your Pro subscription at any time. You'll continue to have access to Pro features until the end of your billing period.
-              </p>
+        <div className="max-w-4xl mx-auto mt-16">
+          <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="font-semibold mb-2">Can I cancel anytime?</h3>
+              <p className="text-gray-600">Yes, you can cancel your subscription at any time. You'll continue to have Pro access until the end of your billing period.</p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-2">What payment methods do you accept?</h4>
-              <p className="text-gray-600">
-                We accept all major credit cards (Visa, MasterCard, American Express) and PayPal for your convenience.
-              </p>
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="font-semibold mb-2">Is there a money-back guarantee?</h3>
+              <p className="text-gray-600">Absolutely! We offer a 30-day money-back guarantee. If you're not satisfied, we'll refund your payment in full.</p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-2">Is there a money-back guarantee?</h4>
-              <p className="text-gray-600">
-                Yes, we offer a 30-day money-back guarantee. If you're not satisfied with Pro features, we'll refund your payment.
-              </p>
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="font-semibold mb-2">What payment methods do you accept?</h3>
+              <p className="text-gray-600">We accept all major credit cards, PayPal, and other payment methods through our secure payment processor Paddle.</p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-2">Can I switch between monthly and yearly plans?</h4>
-              <p className="text-gray-600">
-                Absolutely! You can upgrade to yearly billing at any time to save 20%, or switch back to monthly billing.
-              </p>
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="font-semibold mb-2">Can I switch between monthly and yearly plans?</h3>
+              <p className="text-gray-600">Yes, you can upgrade or downgrade your plan at any time. Changes will be prorated and reflected in your next billing cycle.</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

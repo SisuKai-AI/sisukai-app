@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.858.0",
+    "@paddle/paddle-js": "^1.4.2",
+    "@paddle/paddle-node-sdk": "^3.2.0",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.15",
     "@radix-ui/react-progress": "^1.1.7",
