@@ -1,5 +1,21 @@
-import OpenAI from 'openai'
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime'
+// Conditional imports to avoid build-time errors
+let OpenAI: any = null
+let BedrockRuntimeClient: any = null
+let InvokeModelCommand: any = null
+
+// Initialize imports only when needed
+async function initializeClients() {
+  if (!OpenAI && process.env.DEEPSEEK_API_KEY) {
+    const openaiModule = await import('openai')
+    OpenAI = openaiModule.default
+  }
+  
+  if (!BedrockRuntimeClient && process.env.BEDROCK_API_KEY) {
+    const bedrockModule = await import('@aws-sdk/client-bedrock-runtime')
+    BedrockRuntimeClient = bedrockModule.BedrockRuntimeClient
+    InvokeModelCommand = bedrockModule.InvokeModelCommand
+  }
+}
 
 // LLM Provider Configuration
 interface LLMProvider {
@@ -9,42 +25,65 @@ interface LLMProvider {
   model: string
   maxTokens: number
   temperature: number
+  available: boolean
 }
 
-// DeepSeek Configuration (Primary)
-const deepSeekClient = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com/v1'
-})
-
-// Amazon Bedrock Configuration (Fallback)
-const bedrockClient = new BedrockRuntimeClient({
-  region: 'us-east-1',
-  credentials: {
-    accessKeyId: 'BEDROCK_ACCESS',
-    secretAccessKey: process.env.BEDROCK_API_KEY || ''
+// Create clients only if API keys are available
+function createDeepSeekClient() {
+  if (!process.env.DEEPSEEK_API_KEY || !OpenAI) {
+    return null
   }
-})
+  return new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    baseURL: 'https://api.deepseek.com/v1'
+  })
+}
 
-// Provider Definitions
-const providers: LLMProvider[] = [
-  {
-    name: 'DeepSeek',
-    type: 'openai',
-    client: deepSeekClient,
-    model: 'deepseek-chat',
-    maxTokens: 4000,
-    temperature: 0.7
-  },
-  {
-    name: 'Claude-3.5-Sonnet',
-    type: 'bedrock',
-    client: bedrockClient,
-    model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-    maxTokens: 4000,
-    temperature: 0.7
+function createBedrockClient() {
+  if (!process.env.BEDROCK_API_KEY || !BedrockRuntimeClient) {
+    return null
   }
-]
+  return new BedrockRuntimeClient({
+    region: 'us-east-1',
+    credentials: {
+      accessKeyId: 'BEDROCK_ACCESS',
+      secretAccessKey: process.env.BEDROCK_API_KEY
+    }
+  })
+}
+
+// Dynamic Provider Creation
+function getAvailableProviders(): LLMProvider[] {
+  const providers: LLMProvider[] = []
+  
+  // DeepSeek Provider (Primary)
+  if (process.env.DEEPSEEK_API_KEY) {
+    providers.push({
+      name: 'DeepSeek',
+      type: 'openai',
+      client: null, // Will be initialized when needed
+      model: 'deepseek-chat',
+      maxTokens: 4000,
+      temperature: 0.7,
+      available: true
+    })
+  }
+  
+  // Claude-3.5-Sonnet Provider (Fallback)
+  if (process.env.BEDROCK_API_KEY) {
+    providers.push({
+      name: 'Claude-3.5-Sonnet',
+      type: 'bedrock',
+      client: null, // Will be initialized when needed
+      model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+      maxTokens: 4000,
+      temperature: 0.7,
+      available: true
+    })
+  }
+  
+  return providers
+}
 
 // Usage Statistics
 interface UsageStats {
@@ -56,14 +95,20 @@ interface UsageStats {
   averageResponseTime: number
 }
 
-let usageStats: UsageStats[] = providers.map(p => ({
-  provider: p.name,
-  requestCount: 0,
-  tokenCount: 0,
-  errorCount: 0,
-  lastUsed: new Date(),
-  averageResponseTime: 0
-}))
+let usageStats: UsageStats[] = []
+
+// Initialize usage stats for available providers
+function initializeUsageStats() {
+  const providers = getAvailableProviders()
+  usageStats = providers.map(p => ({
+    provider: p.name,
+    requestCount: 0,
+    tokenCount: 0,
+    errorCount: 0,
+    lastUsed: new Date(),
+    averageResponseTime: 0
+  }))
+}
 
 // LLM Request Interface
 interface LLMRequest {
@@ -124,13 +169,62 @@ export async function generateContent(request: LLMRequest): Promise<LLMResponse>
   const startTime = Date.now()
   let lastError: string = ''
 
+  // Initialize clients and providers
+  await initializeClients()
+  const providers = getAvailableProviders()
+  
+  // Initialize usage stats if not already done
+  if (usageStats.length === 0) {
+    initializeUsageStats()
+  }
+
+  // Check if any providers are available
+  if (providers.length === 0) {
+    return {
+      content: '',
+      provider: 'none',
+      tokensUsed: 0,
+      responseTime: Date.now() - startTime,
+      success: false,
+      error: 'No LLM providers available. Please configure DEEPSEEK_API_KEY or BEDROCK_API_KEY.'
+    }
+  }
+
   // Try each provider in order (Primary -> Fallback)
   for (let i = 0; i < providers.length; i++) {
     const provider = providers[i]
-    const stats = usageStats.find(s => s.provider === provider.name)!
+    let stats = usageStats.find(s => s.provider === provider.name)
+    
+    // Create stats if not found
+    if (!stats) {
+      stats = {
+        provider: provider.name,
+        requestCount: 0,
+        tokenCount: 0,
+        errorCount: 0,
+        lastUsed: new Date(),
+        averageResponseTime: 0
+      }
+      usageStats.push(stats)
+    }
 
     try {
       console.log(`[LLM] Attempting ${provider.name} for content generation...`)
+
+      // Initialize client if not already done
+      if (!provider.client) {
+        if (provider.type === 'openai') {
+          provider.client = createDeepSeekClient()
+        } else if (provider.type === 'bedrock') {
+          provider.client = createBedrockClient()
+        }
+      }
+
+      // Skip if client couldn't be created
+      if (!provider.client) {
+        console.log(`[LLM] Skipping ${provider.name} - client not available`)
+        continue
+      }
 
       let content = ''
       let tokensUsed = 0
@@ -341,23 +435,36 @@ export function getUsageStats(): UsageStats[] {
 }
 
 export function resetUsageStats(): void {
-  usageStats = providers.map(p => ({
-    provider: p.name,
-    requestCount: 0,
-    tokenCount: 0,
-    errorCount: 0,
-    lastUsed: new Date(),
-    averageResponseTime: 0
-  }))
+  initializeUsageStats()
 }
 
 // Health Check Function
 export async function healthCheck(): Promise<{ provider: string; status: string; responseTime: number }[]> {
+  await initializeClients()
+  const providers = getAvailableProviders()
   const results = []
 
   for (const provider of providers) {
     const startTime = Date.now()
     try {
+      // Initialize client if not already done
+      if (!provider.client) {
+        if (provider.type === 'openai') {
+          provider.client = createDeepSeekClient()
+        } else if (provider.type === 'bedrock') {
+          provider.client = createBedrockClient()
+        }
+      }
+
+      if (!provider.client) {
+        results.push({
+          provider: provider.name,
+          status: 'unavailable',
+          responseTime: Date.now() - startTime
+        })
+        continue
+      }
+
       if (provider.type === 'openai') {
         await provider.client.chat.completions.create({
           model: provider.model,
