@@ -4,6 +4,12 @@
       "path": "/api/cron/daily-streak-update",
       "schedule": "0 0 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api|_next|_static|favicon.ico).*)",
+      "destination": "/"
+    }
   ]
 }
 
